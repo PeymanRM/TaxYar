@@ -1,17 +1,8 @@
-from pydantic import BaseModel
 from dataclasses import dataclass
 from typing import Any, Optional
-
 from langchain_core.documents import Document
 from langchain_qdrant import QdrantVectorStore
-
-
-class RetrievedChunk(BaseModel):
-    text: str
-    score: float | None = None
-    metadata: dict[str, Any] | None = None
-    # TODO
-
+from src.retrieval.article_schema import RetrievedChunk
 
 @dataclass
 class RetrieverConfig:
@@ -43,17 +34,23 @@ class Retriever:
 
     def retrieve(
         self,
-        question: str,
+        input: dict[str, str] | str,
         *,
         metadata_filter: Optional[dict[str, Any]] = None,
         top_k: Optional[int] = None,
     ) -> list[RetrievedChunk]:
         k = top_k or self.top_k
 
+        if isinstance(input, dict):
+            question = input.get("question", "")
+        else:
+            question = input
+
         docs_and_scores = self.vector_store.similarity_search_with_score(
             query=question,
             k=k,
             filter=metadata_filter,
+
         )
         results: list[RetrievedChunk] = []
         for doc, score in docs_and_scores:
@@ -67,6 +64,5 @@ class Retriever:
         return RetrievedChunk(
             text=doc.page_content,
             score=score,
-            metadata=md,
-            # TODO
+            article_number=md.get("article_number"),
         )

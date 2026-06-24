@@ -5,7 +5,6 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 import unicodedata
 import json
-import os
 
 load_dotenv()
 
@@ -45,11 +44,7 @@ def main() -> None:
         print(f"\n=== Result {i} ===")
         print("Text:", terminal_text(clean_text(chunk.text)))
         print("Score:", chunk.score)
-        print("Metadata:", chunk.metadata)
-        # print("Article:", chunk.article)
-        # print("Source:", chunk.source)
-        # print("Page:", chunk.page)
-        # print("ChunkId:", chunk.chunk_id)
+        print("Article Number:", chunk.article_number)
 
 
 if __name__ == "__main__":
