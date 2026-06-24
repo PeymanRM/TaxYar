@@ -37,7 +37,6 @@ class Retriever:
             embedding=embedding,
             collection_name=config.collection_name,
             url=config.qdrant_url,
-            content_payload_key="text",
             # api_key=config.qdrant_api_key,
         )
         return cls(vector_store=vector_store, top_k=config.top_k)

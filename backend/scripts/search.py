@@ -1,29 +1,56 @@
-from src.indexing.embeddings import JinaEmbedder
-from src.indexing.qdrant_store import QdrantStore
+from src.retrieval.retriever import Retriever, RetrieverConfig
+from src.indexing.embeddings import embedder
+from dotenv import load_dotenv
+from bidi.algorithm import get_display
+import arabic_reshaper
+import unicodedata
 import json
+import os
 
-examples=[]
+load_dotenv()
 
-embedder = JinaEmbedder()
-store = QdrantStore()
+def clean_text(text: str) -> str:
+    text = unicodedata.normalize("NFC", text)
+    return (
+        text.replace("<br>", "\n")
+            .replace("&nbsp;", " ")
+            .strip()
+    )
 
-with open('../data/eval/examples1.json', encoding='utf-8') as f:
-    examples = json.load(f)
+def terminal_text(text: str) -> str:
+    # Keeps Persian connected and reorders RTL/LTR for terminal display
+    return get_display(arabic_reshaper.reshape(text))
 
-query_vector = embedder.embed(examples[5]["question"])
+def main() -> None:
+    with open("../data/eval/examples1.json", encoding="utf-8") as f:
+        examples = json.load(f)
 
-results = store.search(query_vector, limit=5)
-# print(f"Top {len(results.points)} results for query: '{query}'")
-# print("=" * 50)
-# print("Results:")
-# print(results)
-# print("=" * 50)
+    question = examples[5]["question"]
 
-print(f"Question: {examples[5]['question']}")
+    retriever = Retriever.from_existing_collection(
+        embedding=embedder,
+        config=RetrieverConfig(
+            collection_name="direct-taxes-law",
+            qdrant_url="http://localhost:6333",
+            # qdrant_api_key=None,
+            top_k=5,
+        ),
+    )
 
-for i, point in enumerate(results.points, start=1):
-    print(f"\n=== Result {i} ===")
-    print("point:", point)
-    print("Score:", point.score)
-    print("SectionId:", point.id)
-    # print("Text:", point.payload["text"][:9])
+    results = retriever.retrieve(question)
+
+    print(f"Question: {terminal_text(clean_text(question))}")
+
+    for i, chunk in enumerate(results, start=1):
+        print(f"\n=== Result {i} ===")
+        print("Text:", terminal_text(clean_text(chunk.text)))
+        print("Score:", chunk.score)
+        print("Metadata:", chunk.metadata)
+        # print("Article:", chunk.article)
+        # print("Source:", chunk.source)
+        # print("Page:", chunk.page)
+        # print("ChunkId:", chunk.chunk_id)
+
+
+if __name__ == "__main__":
+    main()
