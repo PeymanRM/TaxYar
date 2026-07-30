@@ -36,7 +36,7 @@ async def chat(req: ChatRequest):
         async for chunk in rag_chain.astream(query):
             if "answer" in chunk and chunk["answer"]:
                 content = chunk["answer"]
-                print(f"Yielding chunk: {content}")
+                # print(f"Yielding chunk: {content}")
                 
                 # Format chunk as an OpenAI SSE object
                 payload = {
@@ -56,6 +56,7 @@ async def chat(req: ChatRequest):
 
         # Send final stop chunk
         stop_payload = {
+            #TODO
             "id": "chatcmpl-rag",
             "object": "chat.completion.chunk",
             "created": int(time.time()),
