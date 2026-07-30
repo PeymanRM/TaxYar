@@ -50,7 +50,6 @@ class Retriever:
             query=question,
             k=k,
             filter=metadata_filter,
-
         )
         results: list[RetrievedChunk] = []
         for doc, score in docs_and_scores:
