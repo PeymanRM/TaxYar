@@ -38,7 +38,7 @@ Output file format (embeddings.json):
 import tqdm
 import json
 from pathlib import Path
-from src.indexing.embeddings import embedder
+from indexing.embeddings import embedder
 
 def embed_chunks(
     chunks_path: str | Path,

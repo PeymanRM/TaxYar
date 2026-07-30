@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 from langchain_core.documents import Document
 from langchain_qdrant import QdrantVectorStore
-from src.retrieval.article_schema import RetrievedChunk
+from retrieval.article_schema import RetrievedChunk
 
 @dataclass
 class RetrieverConfig:

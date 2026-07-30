@@ -1,4 +1,4 @@
-from src.retrieval.article_schema import RetrievedChunk
+from retrieval.article_schema import RetrievedChunk
 
 def format_chunks(chunks: list[RetrievedChunk]) -> str:
     blocks = []

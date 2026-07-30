@@ -2,7 +2,7 @@ import argparse
 import json
 from pathlib import Path
 from qdrant_client.models import PointStruct
-from src.indexing.qdrant_store import QdrantStore
+from indexing.qdrant_store import QdrantStore
 
 
 def index_documents(
