@@ -1,25 +1,33 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import {
-  type JSONSchema7,
   streamText,
   convertToModelMessages,
   type UIMessage,
+  type JSONSchema7,
 } from "ai";
+
+const myProvider = createOpenAICompatible({
+  name: "TaxYar",
+  baseURL: "http://localhost:8000",
+  apiKey: "",
+});
 
 export async function POST(req: Request) {
   const {
     messages,
     system,
     tools,
+    model = "taxyar",
   }: {
     messages: UIMessage[];
     system?: string;
+    model?: string;
     tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
   } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: myProvider.chatModel(model),
     messages: await convertToModelMessages(messages),
     system,
     tools: {
@@ -27,8 +35,5 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse({
-    onError: (error) =>
-      error instanceof Error ? error.message : String(error),
-  });
+  return result.toUIMessageStreamResponse();
 }

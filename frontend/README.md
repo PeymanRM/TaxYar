@@ -1,4 +1,4 @@
-This is the [assistant-ui](https://github.com/assistant-ui/assistant-ui) minimal starter project.
+The frontend is based on the [assistant-ui](https://github.com/assistant-ui/assistant-ui) minimal starter project.
 
 ## Getting Started
 
