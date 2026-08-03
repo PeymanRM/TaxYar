@@ -20,13 +20,14 @@ class Message(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    model: str = "your-model-id"
+    model: str = "taxyar"
     messages: list[Message]
     stream: bool = True
 
 @app.post("/chat/completions")
 async def chat(req: ChatRequest):
-    print(f"Received req: {req}")
+    # print(f"Received req: {req}")
+    # TODO Manage History
     query = next(
         (m.content for m in reversed(req.messages) if m.role == "user"),
         ""
@@ -40,7 +41,7 @@ async def chat(req: ChatRequest):
                 
                 # Format chunk as an OpenAI SSE object
                 payload = {
-                    "id": "chatcmpl-rag",
+                    "id": "chatcmpl-taxyar",
                     "object": "chat.completion.chunk",
                     "created": int(time.time()),
                     "model": req.model,
@@ -57,7 +58,7 @@ async def chat(req: ChatRequest):
         # Send final stop chunk
         stop_payload = {
             #TODO
-            "id": "chatcmpl-rag",
+            "id": "chatcmpl-taxyar",
             "object": "chat.completion.chunk",
             "created": int(time.time()),
             "model": req.model,
