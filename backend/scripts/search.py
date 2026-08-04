@@ -5,6 +5,7 @@ from bidi.algorithm import get_display
 import arabic_reshaper
 import unicodedata
 import json
+import os
 
 load_dotenv()
 
@@ -29,10 +30,10 @@ def main() -> None:
     retriever = Retriever.from_existing_collection(
         embedding=embedder,
         config=RetrieverConfig(
-            collection_name="direct-taxes-law",
-            qdrant_url="http://localhost:6333",
-            # qdrant_api_key=None,
-            top_k=5,
+            collection_name=os.getenv("DIRECT_TAX_LAW_COLLECTION_NAME", ""),
+            qdrant_url=os.getenv("VECTOR_DB_URL", ""),
+            qdrant_api_key=os.getenv("VECTOR_DB_API_KEY"),
+            top_k=int(os.getenv("SIMILARITY_SEARCH_TOP_K", "5")),
         ),
     )
 

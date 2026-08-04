@@ -14,6 +14,7 @@ SYSTEM_PROMPT = """
 8. If no retrieved chunk is relevant, do not cite any chunk. If you have to cite multiple chunks, cite them in order of relevance.
 9. If you're just greeting or introducing yourself, you can dicard context completely and answer freely.
 10. Keep in mind that your the user only provides you with the question. The context is retrieved by the system, irrelevant mentions of context in the answer would result in a bad user experience.
+11. For greetings, ignore the context alltogether.
 
 [STYLE]:
 - Be friendly and approachable.

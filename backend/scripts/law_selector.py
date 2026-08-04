@@ -5,23 +5,12 @@ from pathlib import Path
 
 
 def load_maliyat_data(json_path):
-    """Load maliyat.json file and return the result list."""
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     return data.get('result', [])
 
 
 def select_laws_by_lawid(laws, lawid):
-    """
-    Select laws with lawid from the laws list.
-    
-    Args:
-        laws: List of law dictionaries from maliyat.json
-        lawid: Optional specific lawid to filter by. If None, returns all laws with lawid field.
-    
-    Returns:
-        List of laws containing lawid field
-    """
     with tqdm.tqdm(total=len(laws), desc='Filtering laws by lawId') as pbar:
         laws_with_id = []
         for law in laws:
