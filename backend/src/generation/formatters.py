@@ -9,3 +9,6 @@ def format_chunks(chunks: list[RetrievedChunk]) -> str:
         )
 
     return "\n\n---\n\n".join(blocks)
+
+def get_ranks(chunks: list[RetrievedChunk]) -> list[int]:
+    return [chunk.article_number for chunk in chunks]
