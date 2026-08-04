@@ -3,6 +3,9 @@ from typing import Any, Optional
 from langchain_core.documents import Document
 from langchain_qdrant import QdrantVectorStore
 from retrieval.article_schema import RetrievedChunk
+from functools import lru_cache
+from indexing.embeddings import embedder 
+import os
 
 @dataclass
 class RetrieverConfig:
@@ -65,3 +68,17 @@ class Retriever:
             score=score,
             article_number=md.get("article_number"),
         )
+
+# Singleton getter for Retriever. 
+@lru_cache(maxsize=1)
+def get_retriever() -> Retriever:
+    config = RetrieverConfig(
+        collection_name=os.getenv("DIRECT_TAX_LAW_COLLECTION_NAME", ""),
+        qdrant_url=os.getenv("VECTOR_DB_URL", ""),
+        qdrant_api_key=os.getenv("VECTOR_DB_API_KEY"),
+        top_k=int(os.getenv("SIMILARITY_SEARCH_TOP_K", "5")),
+    )
+    return Retriever.from_existing_collection(
+        embedding=embedder,
+        config=config,
+    )

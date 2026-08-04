@@ -1,13 +1,12 @@
-import os
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from generation.prompts import ANSWER_PROMPT
 from generation.formatters import format_chunks
-
+from generation.llm import get_llm
+from retrieval.retriever import get_retriever
+from functools import lru_cache
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from retrieval.retriever import Retriever, RetrieverConfig
-from indexing.embeddings import embedder
+
 load_dotenv()
 
 def build_rag_chain(retriever, llm):
@@ -32,26 +31,11 @@ def build_rag_chain(retriever, llm):
 
     return rag_chain
 
-# TODO SEPERATE THIS AS A MODULE or sth
-# llm = ChatCohere(
-#         model="command-r-08-2024",   # or "command-r"
-#         temperature=0.2,
-#         max_tokens=1024,
-#     )
-# !!!
-llm = ChatOpenAI(
-    model=os.getenv("BASE_MODEL"),
-    openai_api_base=os.getenv("BASE_MODEL_API_BASE"),
-    openai_api_key=os.getenv("BASE_MODEL_API_KEY"),
-)
-retriever = Retriever.from_existing_collection(
-    embedding=embedder,
-    config=RetrieverConfig(
-        collection_name=os.getenv("DIRECT_TAX_LAW_COLLECTION_NAME"),
-        qdrant_url=os.getenv("VECTOR_DB_URL"),
-        # qdrant_api_key=None,
-        top_k=int(os.getenv("SIMILARITY_SEARCH_TOP_K", 5)),
+    
+@lru_cache(maxsize=1)
+def get_rag_chain():
+    """Singleton factory to get assembled pipeline."""
+    return build_rag_chain(
+        retriever=get_retriever(),
+        llm=get_llm(provider="cohere"),
     )
-)
-
-rag_chain = build_rag_chain(retriever, llm)

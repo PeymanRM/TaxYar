@@ -1,10 +1,11 @@
 import json
 import time
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from rag.pipeline import rag_chain
+from langchain_core.runnables import Runnable
+from rag.pipeline import get_rag_chain
 
 app = FastAPI()
 
@@ -25,7 +26,10 @@ class ChatRequest(BaseModel):
     stream: bool = True
 
 @app.post("/chat/completions")
-async def chat(req: ChatRequest):
+async def chat(
+    req: ChatRequest,
+    chain: Runnable = Depends(get_rag_chain)
+    ):
     # print(f"Received req: {req}")
     # TODO Manage History
     query = next(
@@ -34,7 +38,7 @@ async def chat(req: ChatRequest):
     )
 
     async def generate():
-        async for chunk in rag_chain.astream(query):
+        async for chunk in chain.astream(query):
             if "answer" in chunk and chunk["answer"]:
                 content = chunk["answer"]
                 # print(f"Yielding chunk: {content}")
