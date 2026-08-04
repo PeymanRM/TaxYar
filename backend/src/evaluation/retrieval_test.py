@@ -1,6 +1,8 @@
 import argparse
 import json
+import math
 import os
+import statistics
 from pathlib import Path
 from typing import Any
 from pydantic import BaseModel, TypeAdapter
@@ -10,6 +12,8 @@ from datetime import datetime
 from retrieval.retriever import Retriever, RetrieverConfig
 from indexing.embeddings import embedder
 from generation.formatters import get_ranks
+
+TOP_K = 5
 
 class TestCase(BaseModel):
     id: int
@@ -21,30 +25,38 @@ class AnswerStats:
     question_id: int
     desired_article: int
     retrieval_answer: list[int]
-    is_answered: bool
     rank: int | None
     precision_at_1: float
     precision_at_3: float
     precision_at_5: float
-    reciprocal_rank: float 
-    # dcg: float | None
-    # idcg: float | None
-    # ndcg: float | None
+    hit_at_1: float
+    hit_at_3: float
+    hit_at_5: float
+    reciprocal_rank: float
+    dcg: float
+    idcg: float
+    ndcg: float
 
 @dataclass
 class OverallReport:
     number_of_questions: int
     number_of_answered_questions: int
-    overall_answer_accuracy: float
+    not_found_rate: float
     mean_precision_at_1: float
     mean_precision_at_3: float
     mean_precision_at_5: float
-    mean_reciprocal_rank: float 
-    
+    mean_hit_at_1: float
+    mean_hit_at_3: float
+    mean_hit_at_5: float
+    mean_reciprocal_rank: float
+    mean_ndcg: float
+    mean_rank_of_correct_article: float | None
+    median_rank_of_correct_article: float | None
+
 
 def load_dataset(dataset_path: Path) -> list[TestCase]:
     """For loading and validating dataset"""
-    raw_dataset = [] 
+    raw_dataset = []
     with open(dataset_path, 'r', encoding="utf-8") as f:
         raw_dataset = json.load(f)
     print(f"Dataset with {len(raw_dataset)} questions loaded.")
@@ -55,8 +67,9 @@ def load_dataset(dataset_path: Path) -> list[TestCase]:
     except:
         print("Failed at validating test cases.")
         raise ValueError
-     
+
     return test_cases
+
 
 def evaluate(test_cases: list[TestCase], retriever) -> list[AnswerStats]:
     """Evaluation per each question"""
@@ -65,22 +78,38 @@ def evaluate(test_cases: list[TestCase], retriever) -> list[AnswerStats]:
         for test_case in test_cases:
             ranks = get_ranks(retriever.retrieve(test_case.question))
             answer = test_case.related_article
+
+            is_answered = answer in ranks
+            rank = ranks.index(answer) + 1 if is_answered else None
+
+            # nDCG with a single relevant document and binary relevance:
+            # IDCG is always 1 (best case: the one relevant doc at position 1),
+            # so DCG == 1/log2(rank+1) if found, else 0.
+            dcg = 1 / math.log2(rank + 1) if is_answered else 0.0
+            idcg = 1.0
+            ndcg = dcg / idcg
+
             all_answer_stats.append(
                 AnswerStats(
                     question_id = test_case.id,
                     desired_article = test_case.related_article,
                     retrieval_answer = ranks,
-                    is_answered = True if answer in ranks else False,
-                    rank = ranks.index(answer) + 1 if answer in ranks else None,
-                    precision_at_1 = 1 if ranks[0] == answer else 0.0,
+                    rank = rank,
+                    precision_at_1 = 1.0 if ranks[0] == answer else 0.0,
                     precision_at_3 = ranks[:3].count(answer) / 3.0,
                     precision_at_5 = ranks[:5].count(answer) / 5.0,
-                    reciprocal_rank = 1 / (ranks.index(answer) + 1) if answer in ranks else 0.0
-                    
+                    hit_at_1 = 1.0 if is_answered and rank <= 1 else 0.0,
+                    hit_at_3 = 1.0 if is_answered and rank <= 3 else 0.0,
+                    hit_at_5 = 1.0 if is_answered and rank <= 5 else 0.0,
+                    reciprocal_rank = 1 / rank if is_answered else 0.0,
+                    dcg = dcg,
+                    idcg = idcg,
+                    ndcg = ndcg,
                 )
             )
             pbar.update(1)
     return all_answer_stats
+
 
 def generate_overall_report(answer_stats: list[dict[str, Any]]) -> OverallReport:
     aggregated_answer_stats_dict = {}
@@ -90,16 +119,33 @@ def generate_overall_report(answer_stats: list[dict[str, Any]]) -> OverallReport
                 aggregated_answer_stats_dict[key] = []
             aggregated_answer_stats_dict[key].append(value)
     q_num = len(answer_stats)
-    a_num = sum(aggregated_answer_stats_dict["is_answered"])
+    a_num = int(sum(aggregated_answer_stats_dict["hit_at_5"]))
+
+    found_ranks = [r for r in aggregated_answer_stats_dict["rank"] if r is not None]
+    mean_rank = statistics.mean(found_ranks) if found_ranks else None
+    median_rank = statistics.median(found_ranks) if found_ranks else None
+
+    # a_num/q_num is exactly Hit@TOP_K (== mean_hit_at_5 when TOP_K == 5).
+    # Not-found rate is its complement: 1 - Hit@TOP_K.
+    hit_at_top_k = a_num / q_num
+    not_found_rate = 1 - hit_at_top_k
+
     return OverallReport(
         number_of_questions = q_num,
         number_of_answered_questions = a_num,
-        overall_answer_accuracy = a_num / q_num,
+        not_found_rate = not_found_rate,
         mean_precision_at_1 = sum(aggregated_answer_stats_dict["precision_at_1"]) / q_num,
         mean_precision_at_3 = sum(aggregated_answer_stats_dict["precision_at_3"]) / q_num,
         mean_precision_at_5 = sum(aggregated_answer_stats_dict["precision_at_5"]) / q_num,
-        mean_reciprocal_rank =  sum(aggregated_answer_stats_dict["reciprocal_rank"]) / q_num
+        mean_hit_at_1 = sum(aggregated_answer_stats_dict["hit_at_1"]) / q_num,
+        mean_hit_at_3 = sum(aggregated_answer_stats_dict["hit_at_3"]) / q_num,
+        mean_hit_at_5 = sum(aggregated_answer_stats_dict["hit_at_5"]) / q_num,
+        mean_reciprocal_rank = sum(aggregated_answer_stats_dict["reciprocal_rank"]) / q_num,
+        mean_ndcg = sum(aggregated_answer_stats_dict["ndcg"]) / q_num,
+        mean_rank_of_correct_article = mean_rank,
+        median_rank_of_correct_article = median_rank,
     )
+
 
 def generate_all_reports(all_answer_stats: list[AnswerStats], output_path: Path): #, categories: list[tuple[int,int]] | None
     """ Generate all overall reports and save"""
@@ -117,7 +163,7 @@ def generate_all_reports(all_answer_stats: list[AnswerStats], output_path: Path)
     main_report = generate_overall_report(all_answer_stats_asdict)
     with open(os.path.join(output_path, f'main_report.json'), 'w') as fp:
         json.dump(asdict(main_report), fp, indent=4)
-    
+
     # if categories:
     #     for idx, category in enumerate(categories):
     #         q_idx = 0
@@ -125,12 +171,12 @@ def generate_all_reports(all_answer_stats: list[AnswerStats], output_path: Path)
     #         with open(os.path.join(output_path, f'category_{idx+1}_report.json'), 'w') as fp:
     #             json.dump(category, fp, indent=4)
 
-        
+
 def main():
     # parse args
     parser = argparse.ArgumentParser(description="Evaluating retriever accuracy")
     parser.add_argument("--dataset-path", required=True, type=Path, help="Path to the retrieval evaluation dataset")
-    parser.add_argument("--output-directory", default="../../data/eval/results/" ,type=Path, help="Path to the retrieval evaluation dataset")
+    parser.add_argument("--output-directory", default="../../data/eval/results/", type=Path, help="Path to the retrieval evaluation dataset")
     args = parser.parse_args()
     test_cases = load_dataset(args.dataset_path)
     print("Booting up retriever...")
@@ -140,7 +186,7 @@ def main():
             collection_name="direct-taxes-law",
             qdrant_url="http://localhost:6333",
             # qdrant_api_key=None,
-            top_k=5,
+            top_k=TOP_K,
         )
     )
     print("Retriever initialized.")
