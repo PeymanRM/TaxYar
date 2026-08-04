@@ -1,4 +1,4 @@
-from src.retrieval.retriever import Retriever, RetrieverConfig
+from src.retrieval.retriever import SelfQueryingRetriever, SelfQueryRetrieverConfig
 from src.indexing.embeddings import embedder
 from dotenv import load_dotenv
 from bidi.algorithm import get_display
@@ -25,15 +25,17 @@ def main() -> None:
     with open("../data/eval/examples1.json", encoding="utf-8") as f:
         examples = json.load(f)
 
-    question = examples[5]["question"]
+    question = "ماده 126 چیه؟"
 
-    retriever = Retriever.from_existing_collection(
+
+    retriever = SelfQueryingRetriever.from_existing_collection(
         embedding=embedder,
-        config=RetrieverConfig(
+        config=SelfQueryRetrieverConfig(
             collection_name=os.getenv("DIRECT_TAX_LAW_COLLECTION_NAME", ""),
             qdrant_url=os.getenv("VECTOR_DB_URL", ""),
             qdrant_api_key=os.getenv("VECTOR_DB_API_KEY"),
             top_k=int(os.getenv("SIMILARITY_SEARCH_TOP_K", "5")),
+            verbose=True,
         ),
     )
 

@@ -6,12 +6,13 @@ import math
 import os
 import statistics
 from pathlib import Path
+from time import sleep
 from typing import Any
 from pydantic import BaseModel, TypeAdapter
 from dataclasses import dataclass, asdict
 from tqdm import tqdm
 from datetime import datetime
-from retrieval.retriever import Retriever, RetrieverConfig
+from retrieval.retriever import SelfQueryingRetriever, SelfQueryRetrieverConfig
 from indexing.embeddings import embedder
 from generation.formatters import get_ranks
 
@@ -78,7 +79,16 @@ def evaluate(test_cases: list[TestCase], retriever) -> list[AnswerStats]:
     all_answer_stats = []
     with tqdm(total=len(test_cases), desc="Evaluating") as pbar:
         for test_case in test_cases:
-            ranks = get_ranks(retriever.retrieve(test_case.question))
+            try:
+                ranks = get_ranks(retriever.retrieve(test_case.question))
+            except Exception as e:
+                # retry
+                print(f"Error retrieving for question ID {test_case.id}: '{test_case.question}'. Retrying...")
+                try:
+                    ranks = get_ranks(retriever.retrieve(test_case.question))
+                except Exception as e:
+                    print(f"Failed again for question ID {test_case.id}: '{test_case.question}'. Skipping this question.")
+                    ranks = []
             answer = test_case.related_article
 
             is_answered = answer in ranks
@@ -91,24 +101,46 @@ def evaluate(test_cases: list[TestCase], retriever) -> list[AnswerStats]:
             idcg = 1.0
             ndcg = dcg / idcg
 
-            all_answer_stats.append(
-                AnswerStats(
-                    question_id = test_case.id,
-                    desired_article = test_case.related_article,
-                    retrieval_answer = ranks,
-                    rank = rank,
-                    precision_at_1 = 1.0 if ranks[0] == answer else 0.0,
-                    precision_at_3 = ranks[:3].count(answer) / 3.0,
-                    precision_at_5 = ranks[:5].count(answer) / 5.0,
-                    hit_at_1 = 1.0 if is_answered and rank <= 1 else 0.0,
-                    hit_at_3 = 1.0 if is_answered and rank <= 3 else 0.0,
-                    hit_at_5 = 1.0 if is_answered and rank <= 5 else 0.0,
-                    reciprocal_rank = 1 / rank if is_answered else 0.0,
-                    dcg = dcg,
-                    idcg = idcg,
-                    ndcg = ndcg,
+            if len(ranks) == 0:
+                print(f"Warning: No results returned for question ID {test_case.id}: '{test_case.question}'")
+                all_answer_stats.append(
+                    AnswerStats(
+                        question_id = test_case.id,
+                        desired_article = test_case.related_article,
+                        retrieval_answer = ranks,
+                        rank = None,
+                        precision_at_1 = 0.0,
+                        precision_at_3 = 0.0,
+                        precision_at_5 = 0.0,
+                        hit_at_1 = 0.0,
+                        hit_at_3 = 0.0,
+                        hit_at_5 = 0.0,
+                        reciprocal_rank= 0.0,
+                        dcg = 0.0, 
+                        idcg = 1.0,
+                        ndcg = 0.0,
+                    )
                 )
-            )
+            else:
+                all_answer_stats.append(
+                    AnswerStats(
+                        question_id = test_case.id,
+                        desired_article = test_case.related_article,
+                        retrieval_answer = ranks,
+                        rank = rank,
+                        precision_at_1 = 1.0 if ranks[0] == answer else 0.0,
+                        precision_at_3 = ranks[:3].count(answer) / 3.0,
+                        precision_at_5 = ranks[:5].count(answer) / 5.0,
+                        hit_at_1 = 1.0 if is_answered and rank <= 1 else 0.0,
+                        hit_at_3 = 1.0 if is_answered and rank <= 3 else 0.0,
+                        hit_at_5 = 1.0 if is_answered and rank <= 5 else 0.0,
+                        reciprocal_rank = 1 / rank if is_answered else 0.0,
+                        dcg = dcg,
+                        idcg = idcg,
+                        ndcg = ndcg,
+                    )
+                )
+            sleep(1)
             pbar.update(1)
     return all_answer_stats
 
@@ -182,9 +214,9 @@ def main():
     args = parser.parse_args()
     test_cases = load_dataset(args.dataset_path)
     print("Booting up retriever...")
-    retriever = Retriever.from_existing_collection(
+    retriever = SelfQueryingRetriever.from_existing_collection(
         embedding=embedder,
-        config=RetrieverConfig(
+        config=SelfQueryRetrieverConfig(
             collection_name="direct-taxes-law",
             qdrant_url="http://localhost:6333",
             # qdrant_api_key=None,

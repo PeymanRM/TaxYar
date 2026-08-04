@@ -3,7 +3,7 @@ from langchain_classic.chains.query_constructor.base import AttributeInfo
 
 class RetrievedChunk(BaseModel):
     text: str
-    score: float
+    score: float | None = None
     article_number: int
     # reference_url: str | None = None
 

@@ -3,7 +3,7 @@ from langchain_core.output_parsers import StrOutputParser
 from generation.prompts import ANSWER_PROMPT
 from generation.formatters import format_chunks
 from generation.llm import get_llm
-from retrieval.retriever import get_retriever
+from retrieval.retriever import get_self_query_retriever
 from functools import lru_cache
 from dotenv import load_dotenv
 
@@ -36,6 +36,6 @@ def build_rag_chain(retriever, llm):
 def get_rag_chain():
     """Singleton factory to get assembled pipeline."""
     return build_rag_chain(
-        retriever=get_retriever(),
+        retriever=get_self_query_retriever(),
         llm=get_llm(provider="cohere"),
     )
