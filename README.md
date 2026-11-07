@@ -89,8 +89,6 @@ User question ──► FastAPI ──► RAG pipeline ──► retriever ◄�
 
 ## Getting Started
 
-> ⚠️ **TODO:** the commands below are placeholders. Replace them with the real entry points, file names and environment variables from your repository.
-
 ### Prerequisites
 
 - Python 3.10+ <!-- TODO: confirm version -->
