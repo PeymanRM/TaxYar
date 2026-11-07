@@ -62,11 +62,13 @@ class Retriever:
 
     def _to_chunk(self, doc: Document, score: float | None) -> RetrievedChunk:
         md = doc.metadata or {}
+        print(f"Retrieved doc metadata: {md}")
 
         return RetrievedChunk(
             text=doc.page_content,
             score=score,
             article_number=md.get("article_number"),
+            reference_url=md.get("reference_url"),
         )
 
 # Singleton getter for Retriever. 

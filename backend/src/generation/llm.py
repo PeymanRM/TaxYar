@@ -15,8 +15,9 @@ def get_llm(provider: str = None):
             max_tokens=1024,
         )
     elif provider == "openai":
+        print("Using OpenAI LLM provider")
         return ChatOpenAI(
-            model=os.getenv("BASE_MODEL"),
+            model=os.getenv("BASE_MODEL"), #Gemma 3 27B IT
             openai_api_base=os.getenv("BASE_MODEL_API_BASE"),
             openai_api_key=os.getenv("BASE_MODEL_API_KEY"),
         )

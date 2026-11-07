@@ -32,13 +32,19 @@ async def chat(
     ):
     # print(f"Received req: {req}")
     # TODO Manage History
+    for m in reversed(req.messages):
+        print(m)
     query = next(
         (m.content for m in reversed(req.messages) if m.role == "user"),
         ""
     )
+    print(req.messages[:-1])
 
     async def generate():
-        async for chunk in chain.astream(query):
+        async for chunk in chain.astream({
+            "question": query,
+            "chat_history": req.messages[:-1]
+}       ):
             if "answer" in chunk and chunk["answer"]:
                 content = chunk["answer"]
                 # print(f"Yielding chunk: {content}")

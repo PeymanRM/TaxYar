@@ -5,7 +5,7 @@ class RetrievedChunk(BaseModel):
     text: str
     score: float
     article_number: int
-    # reference_url: str | None = None
+    reference_url: str | None = None
 
 
 metadata_field_info = [

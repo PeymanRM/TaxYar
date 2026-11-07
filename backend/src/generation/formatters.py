@@ -5,7 +5,7 @@ def format_chunks(chunks: list[RetrievedChunk]) -> str:
 
     for chunk in chunks:
         blocks.append(
-            f"[Article number: {chunk.article_number}]\n{chunk.text}"
+            f"[Article number: {chunk.article_number}]\n{chunk.text}\nlink:{chunk.reference_url}"
         )
 
     return "\n\n---\n\n".join(blocks)
